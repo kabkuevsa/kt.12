@@ -1,0 +1,143 @@
+﻿@page
+@model UserProfileManager.Api.Pages.IndexModel
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Пользователи</title>
+</head>
+<body>
+    <h1>Управление пользователями</h1>
+
+    <div style="display: flex; gap: 50px;">
+        
+        <div style="width: 40%; border-right: 1px solid gray; padding-right: 20px;">
+            <h3>Список пользователей</h3>
+            <button onclick="loadUsers()">Обновить</button>
+            <button onclick="showCreateForm()">Создать нового</button>
+
+            <table border="1" style="width: 100%; margin-top: 10px;">
+                <thead>
+                    <tr><th>ID</th><th>Имя</th><th>Email</th></tr>
+                </thead>
+                <tbody id="usersList"></tbody>
+            </table>
+        </div>
+
+        
+        <div style="width: 60%;">
+            <h3>Информация о пользователе</h3>
+            <div id="details">
+                <p><i>Выберите пользователя из списка</i></p>
+            </div>
+        </div>
+    </div>
+
+    
+    <div id="createForm" style="display:none; margin-top: 20px; padding: 15px; border: 1px solid #ccc;">
+        <h4>Создать пользователя</h4>
+        <input type="text" id="newFirstName" placeholder="Имя" style="margin: 5px;"><br>
+        <input type="text" id="newLastName" placeholder="Фамилия" style="margin: 5px;"><br>
+        <input type="email" id="newEmail" placeholder="Email" style="margin: 5px;"><br>
+        <input type="number" id="newAge" placeholder="Возраст" style="margin: 5px;"><br>
+        <button onclick="createUser()">Создать</button>
+        <button onclick="document.getElementById('createForm').style.display='none'">Отмена</button>
+    </div>
+
+    <script>
+        let selectedUserId = null;
+
+        
+        async function loadUsers() {
+            const response = await fetch('/api/users');
+            const users = await response.json();
+
+            const tbody = document.getElementById('usersList');
+            tbody.innerHTML = '';
+
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${user.id}</td><td>${user.firstName} ${user.lastName}</td><td>${user.email}</td>`;
+                row.style.cursor = 'pointer';
+                row.onclick = () => showDetails(user);
+                tbody.appendChild(row);
+            });
+        }
+
+        
+        async function showDetails(user) {
+            selectedUserId = user.id;
+            const response = await fetch(`/api/users/${user.id}`);
+            const userData = await response.json();
+
+            let profileHtml = '';
+            if (userData.profile) {
+                profileHtml = `
+                    <h4>Профиль:</h4>
+                    <p>Биография: ${userData.profile.bio || 'не указана'}</p>
+                    <p>Аватар: ${userData.profile.avatarUrl || 'не указан'}</p>
+                    <p>Создан: ${new Date(userData.profile.createdAt).toLocaleString()}</p>
+                `;
+            }
+
+            document.getElementById('details').innerHTML = `
+                <h2>${userData.firstName} ${userData.lastName}</h2>
+                <p>Email: ${userData.email}</p>
+                <p>Возраст: ${userData.age}</p>
+                ${profileHtml}
+                <button onclick="editUser()">Редактировать</button>
+                <button onclick="deleteUser()">Удалить</button>
+            `;
+        }
+
+        
+        function showCreateForm() {
+            document.getElementById('createForm').style.display = 'block';
+        }
+
+        
+        async function createUser() {
+            const user = {
+                firstName: document.getElementById('newFirstName').value,
+                lastName: document.getElementById('newLastName').value,
+                email: document.getElementById('newEmail').value,
+                age: parseInt(document.getElementById('newAge').value) || 0
+            };
+
+            const response = await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(user)
+            });
+
+            if (response.ok) {
+                alert('Пользователь создан!');
+                document.getElementById('createForm').style.display = 'none';
+                loadUsers();
+            } else {
+                alert('Ошибка при создании');
+            }
+        }
+
+       
+        async function deleteUser() {
+            if (!selectedUserId || !confirm('Удалить пользователя?')) return;
+
+            await fetch(`/api/users/${selectedUserId}`, { method: 'DELETE' });
+            alert('Пользователь удален');
+            loadUsers();
+            document.getElementById('details').innerHTML = '<p><i>Выберите пользователя из списка</i></p>';
+            selectedUserId = null;
+        }
+
+        
+        function editUser() {
+            alert('Функция редактирования будет добавлена позже');
+        }
+
+        
+        loadUsers();
+    </script>
+</body>
+</html>
